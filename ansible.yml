@@ -1,0 +1,94 @@
+---
+
+- name: Check MS SQL Server Health
+
+  hosts: 20.102.105.60
+
+  gather_facts: no
+
+  vars:
+
+    sql_instance: "20.102.105.60"
+
+    sql_user: "rajusql"
+
+    sql_password: "Raju@2002"
+ 
+  tasks:
+
+    - name: Get Database Space Utilization
+
+      win_command: |
+
+        powershell -Command "Invoke-Sqlcmd -Query \"
+
+        SELECT DB_NAME(database_id) AS DatabaseName, 
+
+               (size * 8) / 1024 AS SizeMB 
+
+        FROM sys.master_files 
+
+        WHERE type = 0;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
+
+      register: db_space
+
+      ignore_errors: yes
+ 
+    - name: Get Database Health
+
+      win_command: |
+
+        powershell -Command "Invoke-Sqlcmd -Query \"
+
+        SELECT name, state_desc, recovery_model_desc 
+
+        FROM sys.databases;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
+
+      register: db_health
+
+      ignore_errors: yes
+ 
+    - name: Check for Deadlocks
+
+      win_command: |
+
+        powershell -Command "Invoke-Sqlcmd -Query \"
+
+        SELECT COUNT(*) AS Deadlocks 
+
+        FROM sys.dm_tran_locks 
+
+        WHERE request_status = 'WAIT';\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
+
+      register: deadlocks
+
+      ignore_errors: yes
+ 
+    - name: Get SQL Agent Job Activities
+
+      win_command: |
+
+        powershell -Command "Invoke-Sqlcmd -Query \"
+
+        SELECT job_id, name, last_run_outcome, enabled 
+
+        FROM msdb.dbo.sysjobs;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
+
+      register: job_activities
+
+      ignore_errors: yes
+ 
+    - name: Display Results
+
+      debug:
+
+        msg:
+
+          - "Database Space Utilization: {{ db_space.stdout }}"
+
+          - "Database Health: {{ db_health.stdout }}"
+
+          - "Deadlocks: {{ deadlocks.stdout }}"
+
+          - "SQL Agent Job Activities: {{ job_activities.stdout }}"
+ 
