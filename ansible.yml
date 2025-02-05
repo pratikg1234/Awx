@@ -1,52 +1,46 @@
 ---
-- name: Check MS SQL Server Health
-  hosts: 10.112.0.10
+- name: SQL Server Health Check on Windows using Ansible
+  hosts: sql_servers
   gather_facts: no
-  vars:
-    sql_instance: "10.112.0.10"
-    sql_user: "rajusql"
-    sql_password: "Raju@2002"
-
   tasks:
-    - name: Get Database Space Utilization
-      win_command: |
-        powershell -Command "Invoke-Sqlcmd -Query \"
-        SELECT DB_NAME(database_id) AS DatabaseName, 
-               (size * 8) / 1024 AS SizeMB 
-        FROM sys.master_files 
-        WHERE type = 0;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
-      register: db_space
-      ignore_errors: yes
 
-    - name: Get Database Health
-      win_command: |
-        powershell -Command "Invoke-Sqlcmd -Query \"
-        SELECT name, state_desc, recovery_model_desc 
-        FROM sys.databases;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
-      register: db_health
-      ignore_errors: yes
+    - name: Check database space utilization
+      ansible.builtin.shell: |
+        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
+        SELECT DB_NAME(database_id) AS DatabaseName, SUM(size * 8) / 1024 AS TotalSizeMB 
+        FROM sys.master_files GROUP BY database_id;"
+      register: db_space_result
 
-    - name: Check for Deadlocks
-      win_command: |
-        powershell -Command "Invoke-Sqlcmd -Query \"
-        SELECT COUNT(*) AS Deadlocks 
-        FROM sys.dm_tran_locks 
-        WHERE request_status = 'WAIT';\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
-      register: deadlocks
-      ignore_errors: yes
+    - debug:
+        msg: "{{ db_space_result.stdout_lines }}"
 
-    - name: Get SQL Agent Job Activities
-      win_command: |
-        powershell -Command "Invoke-Sqlcmd -Query \"
-        SELECT job_id, name, last_run_outcome, enabled 
-        FROM msdb.dbo.sysjobs;\" -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes"
-      register: job_activities
-      ignore_errors: yes
+    - name: Check for deadlocks
+      ansible.builtin.shell: |
+        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
+        SELECT * FROM sys.dm_tran_locks WHERE request_status = 'WAIT';"
+      register: deadlock_result
 
-    - name: Display Results
-      debug:
-        msg:
-          - "Database Space Utilization: {{ db_space.stdout }}"
-          - "Database Health: {{ db_health.stdout }}"
-          - "Deadlocks: {{ deadlocks.stdout }}"
-          - "SQL Agent Job Activities: {{ job_activities.stdout }}"
+    - debug:
+        msg: "{{ deadlock_result.stdout_lines }}"
+
+    - name: Check SQL Server Agent job activities
+      ansible.builtin.shell: |
+        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
+        SELECT j.name, j.enabled, MAX(h.run_status) AS last_run_status
+        FROM msdb.dbo.sysjobs j
+        LEFT JOIN msdb.dbo.sysjobhistory h ON j.job_id = h.job_id
+        WHERE h.step_id = 0
+        GROUP BY j.name, j.enabled;"
+      register: job_result
+
+    - debug:
+        msg: "{{ job_result.stdout_lines }}"
+
+    - name: Check SQL Server health
+      ansible.builtin.shell: |
+        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
+        SELECT name AS DatabaseName, state_desc AS Status FROM sys.databases;"
+      register: health_result
+
+    - debug:
+        msg: "{{ health_result.stdout_lines }}"
