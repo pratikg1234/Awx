@@ -1,46 +1,52 @@
 ---
-- name: SQL Server Health Check on Windows using Ansible
+- name: SQL Server Monitoring
   hosts: all
   gather_facts: no
+  vars:
+    mssql_ip: "20.102.105.60"
+    mssql_username: "rajusql"
+    mssql_password: "Raju@2002"
+
   tasks:
+    - name: Check Database Space Utilization
+      win_shell: |
+        $query = "SELECT DB_NAME(database_id) AS DatabaseName, 
+                         (size * 8) / 1024 AS SizeMB 
+                  FROM sys.master_files 
+                  WHERE type = 0;"
+        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+      register: db_space
 
-    - name: Check database space utilization
-      ansible.builtin.shell: |
-        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
-        SELECT DB_NAME(database_id) AS DatabaseName, SUM(size * 8) / 1024 AS TotalSizeMB 
-        FROM sys.master_files GROUP BY database_id;"
-      register: db_space_result
+    - name: Print Database Space Utilization
+      debug:
+        msg: "{{ db_space.stdout_lines }}"
 
-    - debug:
-        msg: "{{ db_space_result.stdout_lines }}"
+    - name: Check Database Health
+      win_shell: |
+        $query = "SELECT name, state_desc, recovery_model_desc FROM sys.databases;"
+        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+      register: db_health
 
-    - name: Check for deadlocks
-      ansible.builtin.shell: |
-        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
-        SELECT * FROM sys.dm_tran_locks WHERE request_status = 'WAIT';"
-      register: deadlock_result
+    - name: Print Database Health
+      debug:
+        msg: "{{ db_health.stdout_lines }}"
 
-    - debug:
-        msg: "{{ deadlock_result.stdout_lines }}"
+    - name: Check for Deadlocks
+      win_shell: |
+        $query = "SELECT request_session_id FROM sys.dm_tran_locks WHERE request_mode = 'X' GROUP BY request_session_id HAVING COUNT(*) > 1;"
+        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+      register: deadlocks
 
-    - name: Check SQL Server Agent job activities
-      ansible.builtin.shell: |
-        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
-        SELECT j.name, j.enabled, MAX(h.run_status) AS last_run_status
-        FROM msdb.dbo.sysjobs j
-        LEFT JOIN msdb.dbo.sysjobhistory h ON j.job_id = h.job_id
-        WHERE h.step_id = 0
-        GROUP BY j.name, j.enabled;"
-      register: job_result
+    - name: Print Deadlocks
+      debug:
+        msg: "{{ deadlocks.stdout_lines }}"
 
-    - debug:
-        msg: "{{ job_result.stdout_lines }}"
+    - name: Check SQL Agent Job Activities
+      win_shell: |
+        $query = "SELECT job_id, name, enabled, last_run_outcome, last_run_date, last_run_time FROM msdb.dbo.sysjobs;"
+        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+      register: job_status
 
-    - name: Check SQL Server health
-      ansible.builtin.shell: |
-        sqlcmd -S {{ sql_server }} -U {{ sql_username }} -P {{ sql_password }} -Q "
-        SELECT name AS DatabaseName, state_desc AS Status FROM sys.databases;"
-      register: health_result
-
-    - debug:
-        msg: "{{ health_result.stdout_lines }}"
+    - name: Print Job Activities
+      debug:
+        msg: "{{ job_status.stdout_lines }}"
