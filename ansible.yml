@@ -1,52 +1,61 @@
 ---
-- name: SQL Server Monitoring
-   hosts: all
+- name: Check MS SQL Server Health
+  hosts: all
   gather_facts: no
   vars:
-    mssql_ip: "20.102.105.60"
-    mssql_username: "rajusql"
-    mssql_password: "Raju@2002"
+    sql_instance: "20.102.105.60"
+    sql_user: "rajusql"
+    sql_password: "Raju@2002"
 
   tasks:
-    - name: Check Database Space Utilization
+    - name: Get Database Space Utilization
       win_shell: |
-        $query = "SELECT DB_NAME(database_id) AS DatabaseName, 
-                         (size * 8) / 1024 AS SizeMB 
-                  FROM sys.master_files 
-                  WHERE type = 0;"
-        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+        try {
+          $query = "SELECT DB_NAME(database_id) AS DatabaseName, (size * 8) / 1024 AS SizeMB FROM sys.master_files WHERE type = 0;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes | ConvertTo-Json
+        } catch {
+          Write-Output "Error: $_"
+        }
       register: db_space
+      ignore_errors: yes
 
-    - name: Print Database Space Utilization
-      debug:
-        msg: "{{ db_space.stdout_lines }}"
-
-    - name: Check Database Health
+    - name: Get Database Health
       win_shell: |
-        $query = "SELECT name, state_desc, recovery_model_desc FROM sys.databases;"
-        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+        try {
+          $query = "SELECT name, state_desc, recovery_model_desc FROM sys.databases;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes | ConvertTo-Json
+        } catch {
+          Write-Output "Error: $_"
+        }
       register: db_health
-
-    - name: Print Database Health
-      debug:
-        msg: "{{ db_health.stdout_lines }}"
+      ignore_errors: yes
 
     - name: Check for Deadlocks
       win_shell: |
-        $query = "SELECT request_session_id FROM sys.dm_tran_locks WHERE request_mode = 'X' GROUP BY request_session_id HAVING COUNT(*) > 1;"
-        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
+        try {
+          $query = "SELECT COUNT(*) AS Deadlocks FROM sys.dm_tran_locks WHERE request_status = 'WAIT';"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes | ConvertTo-Json
+        } catch {
+          Write-Output "Error: $_"
+        }
       register: deadlocks
+      ignore_errors: yes
 
-    - name: Print Deadlocks
-      debug:
-        msg: "{{ deadlocks.stdout_lines }}"
-
-    - name: Check SQL Agent Job Activities
+    - name: Get SQL Agent Job Activities
       win_shell: |
-        $query = "SELECT job_id, name, enabled, last_run_outcome, last_run_date, last_run_time FROM msdb.dbo.sysjobs;"
-        Invoke-Sqlcmd -ServerInstance "{{ mssql_ip }}" -Username "{{ mssql_username }}" -Password "{{ mssql_password }}" -Query $query -TrustServerCertificate Yes
-      register: job_status
+        try {
+          $query = "SELECT job_id, name, last_run_outcome, enabled FROM msdb.dbo.sysjobs;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate Yes | ConvertTo-Json
+        } catch {
+          Write-Output "Error: $_"
+        }
+      register: job_activities
+      ignore_errors: yes
 
-    - name: Print Job Activities
+    - name: Display Results
       debug:
-        msg: "{{ job_status.stdout_lines }}"
+        msg:
+          - "Database Space Utilization: {{ db_space.stdout | default('No output') }}"
+          - "Database Health: {{ db_health.stdout | default('No output') }}"
+          - "Deadlocks: {{ deadlocks.stdout | default('No output') }}"
+          - "SQL Agent Job Activities: {{ job_activities.stdout | default('No output') }}"
