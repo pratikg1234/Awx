@@ -1,9 +1,9 @@
 ---
 - name: Check MS SQL Server Health
-  hosts: all
+  hosts: 10.112.0.10
   gather_facts: no
   vars:
-    sql_instance: "20.102.105.60"
+    sql_instance: "10.112.0.10"
     sql_user: "rajusql"
     sql_password: "Raju@2002"
 
