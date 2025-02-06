@@ -1,6 +1,5 @@
 ---
 - name: SQL Server Monitoring
-  hosts: all
   gather_facts: no
   vars:
     mssql_ip: "20.102.105.60"
