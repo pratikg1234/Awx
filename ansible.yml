@@ -1,6 +1,6 @@
 ---
 - name: SQL Server Health Check on Windows using Ansible
-  hosts: sql_servers
+  hosts: all
   gather_facts: no
   tasks:
 
