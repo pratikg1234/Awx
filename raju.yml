@@ -1,0 +1,60 @@
+---
+- name: Check MS SQL Server Health
+  hosts: 10.112.0.10  # IP or hostname of the Windows Server where SQL Server is running
+  gather_facts: no
+  vars:
+    sql_instance: "10.112.0.10"  # SQL Server IP or hostname
+    sql_user: "rajusql"  # Replace with your SQL Server username
+    sql_password: "Raju@2002"  # Replace with your SQL Server password
+
+  tasks:
+    - name: Get Database Space Utilization
+      win_shell: |
+        Invoke-Sqlcmd -Query "
+        SELECT DB_NAME(database_id) AS DatabaseName,
+               (size * 8) / 1024 AS SizeMB
+        FROM sys.master_files
+        WHERE type = 0;" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" 
+      register: db_space
+      ignore_errors: yes
+
+    - name: Display Database Space Utilization
+      debug:
+        msg: "Database Space Utilization: {{ db_space.stdout_lines }}"
+
+    - name: Get Database Health
+      win_shell: |
+        Invoke-Sqlcmd -Query "
+        SELECT name, state_desc, recovery_model_desc 
+        FROM sys.databases;" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" 
+      register: db_health
+      ignore_errors: yes
+
+    - name: Display Database Health
+      debug:
+        msg: "Database Health: {{ db_health.stdout_lines }}"
+
+    - name: Check for Deadlocks
+      win_shell: |
+        Invoke-Sqlcmd -Query "
+        SELECT COUNT(*) AS Deadlocks
+        FROM sys.dm_tran_locks
+        WHERE request_status = 'WAIT';" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" 
+      register: deadlocks
+      ignore_errors: yes
+
+    - name: Display Deadlock Count
+      debug:
+        msg: "Deadlocks: {{ deadlocks.stdout_lines }}"
+
+    - name: Get SQL Agent Job Activities
+      win_shell: |
+        Invoke-Sqlcmd -Query "
+        SELECT job_id, name, last_run_outcome, enabled 
+        FROM msdb.dbo.sysjobs;" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" 
+      register: job_activities
+      ignore_errors: yes
+
+    - name: Display SQL Agent Job Activities
+      debug:
+        msg: "SQL Agent Job Activities: {{ job_activities.stdout_lines }}"
