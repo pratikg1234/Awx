@@ -1,0 +1,60 @@
+---
+- name: Check MS SQL Server Health
+  hosts: 10.112.0.10
+  gather_facts: no
+  vars:
+    sql_instance: "10.112.0.10"
+    sql_user: "rajusql"
+    sql_password: "Raju@2002"
+
+  tasks:
+    - name: Get Database Space Utilization
+      win_shell: |
+        try {
+          $query = "SELECT DB_NAME(database_id) AS DatabaseName, (size * 8) / 1024 AS SizeMB FROM sys.master_files WHERE type = 0;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate 
+        } catch {
+          Write-Output "Error: $_"
+        }
+      register: db_space
+      ignore_errors: yes
+
+    - name: Get Database Health
+      win_shell: |
+        try {
+          $query = "SELECT name, state_desc, recovery_model_desc FROM sys.databases;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate 
+          Write-Output "Error: $_"
+        }
+      register: db_health
+      ignore_errors: yes
+
+    - name: Check for Deadlocks
+      win_shell: |
+        try {
+          $query = "SELECT COUNT(*) AS Deadlocks FROM sys.dm_tran_locks WHERE request_status = 'WAIT';"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate 
+        } catch {
+          Write-Output "Error: $_"
+        }
+      register: deadlocks
+      ignore_errors: yes
+
+    - name: Get SQL Agent Job Activities
+      win_shell: |
+        try {
+          $query = "SELECT job_id, name, last_run_outcome, enabled FROM msdb.dbo.sysjobs;"
+          Invoke-Sqlcmd -Query $query -ServerInstance '{{ sql_instance }}' -Username '{{ sql_user }}' -Password '{{ sql_password }}' -TrustServerCertificate 
+        } catch {
+          Write-Output "Error: $_"
+        }
+      register: job_activities
+      ignore_errors: yes
+
+    - name: Display Results
+      debug:
+        msg:
+          - "Database Space Utilization: {{ db_space.stdout | default('No output') }}"
+          - "Database Health: {{ db_health.stdout | default('No output') }}"
+          - "Deadlocks: {{ deadlocks.stdout | default('No output') }}"
+          - "SQL Agent Job Activities: {{ job_activities.stdout | default('No output') }}"
