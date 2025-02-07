@@ -23,7 +23,14 @@
     - name: Get Database Health
       win_shell: |
         try {
-          $query = "SELECT name AS DatabaseName, state_desc AS Status FROM sys.databases;"
+          $query = "SELECT name AS DatabaseName,
+          state_desc AS Status,
+          (SELECT COUNT(*) FROM sys.dm_exec_requests) AS ActiveRequests,
+          (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1) AS ActiveUserConnections,
+          (SELECT COUNT(*) FROM sys.dm_os_waiting_tasks) AS PendingRequests,
+          (SELECT COUNT(*) FROM sys.dm_os_performance_counters
+          WHERE counter_name = 'Processor Queue Length') AS CPUQueueLength
+          FROM sys.databases;"
           $result = Invoke-Sqlcmd -Query "$query" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" -TrustServerCertificate | ConvertTo-Json -Compress -Depth 3
           if (-not $result) { Write-Output '[]' } else { Write-Output $result }
         } catch {
@@ -47,7 +54,12 @@
     - name: Get SQL Agent Job Activities
       win_shell: |
         try {
-          $query = "SELECT name, enabled, last_run_outcome FROM msdb.dbo.sysjobs;"
+          $query = "SELECT j.job_id, j.name, j.enabled,
+               MAX(h.run_status) AS last_run_status
+               FROM msdb.dbo.sysjobs j
+               LEFT JOIN msdb.dbo.sysjobhistory h ON j.job_id = h.job_id
+               WHERE h.step_id = 0
+               GROUP BY j.job_id, j.name, j.enabled;"
           $result = Invoke-Sqlcmd -Query "$query" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" -TrustServerCertificate | ConvertTo-Json -Compress -Depth 3
           if (-not $result) { Write-Output '[]' } else { Write-Output $result }
         } catch {
