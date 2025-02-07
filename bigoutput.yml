@@ -120,9 +120,7 @@
                  - Active User Connections: {{ item.ActiveUserConnections | default(0) }}
                  - Pending Requests: {{ item.PendingRequests | default(0) }}
                  - CPU Queue Length: {{ item.CPUQueueLength | default(0) }}
-              # {% else %}
-              #   - ⚠️ Some fields are missing for this database entry:
-              # {% endif %}
+            
             {% endfor %}
           {% else %}
             [❌] No database health data available.
