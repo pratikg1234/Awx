@@ -86,8 +86,8 @@
              {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
           {% endfor %}
 
-          🩺 Database Health Check:
-          {% for db in db_health_fact | default([]) %}
-           - Database: {{ db.name }}
-             - Status: {{ db.state_desc }}
-          {% endfor %}
+          # 🩺 Database Health Check:
+          # {% for db in db_health_fact | default([]) %}
+          #  - Database: {{ db.name }}
+          #    - Status: {{ db.state_desc }}
+          # {% endfor %}
