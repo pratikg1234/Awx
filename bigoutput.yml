@@ -123,4 +123,4 @@
              - Active User Connections: {{ db_health_fact.ActiveUserConnections }}
              - Pending Requests: {{ db_health_fact.PendingRequests }}
              - CPU Queue Length: {{ db_health_fact.CPUQueueLength }}
-          {% endfor %}
+          {% endif %}
