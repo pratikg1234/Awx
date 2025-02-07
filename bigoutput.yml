@@ -77,30 +77,29 @@
 
     - name: Display Formatted Results
       debug:
-         msg: |
+        msg: |
           📊 Database Space Utilization:
-          {% for item in db_space_fact | default([]) %}
+          {% for item in db_space_fact | default([]) if item.DatabaseName is defined and item.SizeMB is defined %}
            - {{ item.DatabaseName }}: {{ item.SizeMB }} MB
           {% endfor %}
-
+    
           🚨 Deadlocks:
-          {% if deadlocks_fact.Deadlocks | int > 0 %}
+          {% if (deadlocks_fact.Deadlocks | default(0) | int) > 0 %}
            - {{ deadlocks_fact.Deadlocks }} deadlocks detected!
           {% else %}
            - No deadlocks detected
           {% endif %}
-
-          [ℹ️] Job activities query returned {{ job_activities_fact | length }} rows.
-
+    
+          [ℹ️] Job activities query returned {{ job_activities_fact | default([]) | length }} rows.
+    
           🛠 SQL Server Agent Job Activities:
-          {% for job in job_activities_fact | default([]) %}
+          {% for job in job_activities_fact | default([]) if job.name is defined and job.enabled is defined %}
            - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
-             {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
+             {% if job.last_run_outcome | default(-1) == 1 %}Succeeded{% elif job.last_run_outcome | default(-1) == 0 %}Failed{% else %}Unknown{% endif %}
           {% endfor %}
-
+    
           🩺 Database Health Check:
-          {% for db in db_health_fact | default([]) %}
+          {% for db in db_health_fact | default([]) if db.name is defined and db.state_desc is defined %}
            - Database: {{ db.name }}
              - Status: {{ db.state_desc }}
           {% endfor %}
-    
