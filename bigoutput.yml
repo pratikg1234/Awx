@@ -80,11 +80,11 @@
 
           [ℹ️] Job activities query returned {{ job_activities_fact | length }} rows.
 
-          🛠 SQL Server Agent Job Activities:
-          {% for job in job_activities_fact | default([]) %}
-           - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
-             {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
-          {% endfor %}
+          # 🛠 SQL Server Agent Job Activities:
+          # {% for job in job_activities_fact | default([]) %}
+          #  - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
+          #    {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
+          # {% endfor %}
 
           # 🩺 Database Health Check:
           # {% for db in db_health_fact | default([]) %}
