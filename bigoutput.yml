@@ -51,22 +51,22 @@
       register: deadlocks
       ignore_errors: yes
 
-    # - name: Get SQL Agent Job Activities
-    #   win_shell: |
-    #     try {
-    #       $query = "SELECT j.job_id, j.name, j.enabled,
-    #            MAX(h.run_status) AS last_run_status
-    #            FROM msdb.dbo.sysjobs j
-    #            LEFT JOIN msdb.dbo.sysjobhistory h ON j.job_id = h.job_id
-    #            WHERE h.step_id = 0
-    #            GROUP BY j.job_id, j.name, j.enabled;"
-    #       $result = Invoke-Sqlcmd -Query "$query" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" -TrustServerCertificate | ConvertTo-Json -Compress -Depth 3
-    #       if (-not $result) { Write-Output '[]' } else { Write-Output $result }
-    #     } catch {
-    #       Write-Output '[{"Error": "' + $_.Exception.Message + '"}]'
-    #     }
-    #   register: job_activities
-    #   ignore_errors: yes
+    - name: Get SQL Agent Job Activities
+      win_shell: |
+        try {
+          $query = "SELECT j.job_id, j.name, j.enabled,
+               MAX(h.run_status) AS last_run_status
+               FROM msdb.dbo.sysjobs j
+               LEFT JOIN msdb.dbo.sysjobhistory h ON j.job_id = h.job_id
+               WHERE h.step_id = 0
+               GROUP BY j.job_id, j.name, j.enabled;"
+          $result = Invoke-Sqlcmd -Query "$query" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" -TrustServerCertificate | ConvertTo-Json -Compress -Depth 3
+          if (-not $result) { Write-Output '[]' } else { Write-Output $result }
+        } catch {
+          Write-Output '[{"Error": "' + $_.Exception.Message + '"}]'
+        }
+      register: job_activities
+      ignore_errors: yes
 
     - name: Convert Outputs to JSON
       set_fact:
@@ -75,48 +75,32 @@
         deadlocks_fact: "{{ (deadlocks.stdout | from_json) if deadlocks.stdout is not none else {'Deadlocks': 0} }}"
         job_activities_fact: "{{ (job_activities.stdout | from_json) if job_activities.stdout is not none else [] }}"
 
-    # - name: Display Formatted Results
-    #   debug:
-    #      msg: |
-    #       📊 Database Space Utilization:
-    #       {% for item in db_space_fact | default([]) %}
-    #        - {{ item.DatabaseName }}: {{ item.SizeMB }} MB
-    #       {% endfor %}
-
-    #       🚨 Deadlocks:
-    #       {% if deadlocks_fact.Deadlocks | int > 0 %}
-    #        - {{ deadlocks_fact.Deadlocks }} deadlocks detected!
-    #       {% else %}
-    #        - No deadlocks detected
-    #       {% endif %}
-
-    #       [ℹ️] Job activities query returned {{ job_activities_fact | length }} rows.
-
-    #       # 🛠 SQL Server Agent Job Activities:
-    #       # {% for job in job_activities_fact | default([]) %}
-    #       #  - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
-    #       #    {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
-    #       # {% endfor %}
-
-    #       # 🩺 Database Health Check:
-    #       # {% for db in db_health_fact | default([]) %}
-    #       #  - Database: {{ db.name }}
-    #       #    - Status: {{ db.state_desc }}
-    #       # {% endfor %}
     - name: Display Formatted Results
       debug:
-        msg:
-          - "📊 Database Space Utilization:"
-          - "{{ db_space_fact | default([]) | map(attribute='DatabaseName') | zip(db_space_fact | map(attribute='SizeMB')) | list | map('join', ': ') | list }}"
-    
-          - "🚨 Deadlocks:"
-          - "{% if deadlocks_fact.Deadlocks | int > 0 %}{{ deadlocks_fact.Deadlocks }} deadlocks detected!{% else %}No deadlocks detected{% endif %}"
-    
-          - "[ℹ️] Job activities query returned {{ job_activities_fact | length }} rows."
-    
-          - "🛠 SQL Server Agent Job Activities:"
-          - "{{ job_activities_fact | default([]) | map(attribute='name') | zip(job_activities_fact | map(attribute='enabled')) | list | map('join', ': ') | list }}"
-    
-          - "🩺 Database Health Check:"
-          - "{{ db_health_fact | default([]) | map(attribute='DatabaseName') | zip(db_health_fact | map(attribute='Status')) | list | map('join', ': ') | list }}"
+         msg: |
+          📊 Database Space Utilization:
+          {% for item in db_space_fact | default([]) %}
+           - {{ item.DatabaseName }}: {{ item.SizeMB }} MB
+          {% endfor %}
+
+          🚨 Deadlocks:
+          {% if deadlocks_fact.Deadlocks | int > 0 %}
+           - {{ deadlocks_fact.Deadlocks }} deadlocks detected!
+          {% else %}
+           - No deadlocks detected
+          {% endif %}
+
+          [ℹ️] Job activities query returned {{ job_activities_fact | length }} rows.
+
+          🛠 SQL Server Agent Job Activities:
+          {% for job in job_activities_fact | default([]) %}
+           - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
+             {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
+          {% endfor %}
+
+          🩺 Database Health Check:
+          {% for db in db_health_fact | default([]) %}
+           - Database: {{ db.name }}
+             - Status: {{ db.state_desc }}
+          {% endfor %}
     
