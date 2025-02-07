@@ -74,10 +74,6 @@
         db_health_fact: "{{ (db_health.stdout | from_json) if db_health.stdout is not none else [] }}"
         deadlocks_fact: "{{ (deadlocks.stdout | from_json) if deadlocks.stdout is not none else {'Deadlocks': 0} }}"
         job_activities_fact: "{{ (job_activities.stdout | from_json) if job_activities.stdout is not none else [] }}"
-        
-    - name: Debug db_health_fact
-      debug:
-        var: db_health_fact
 
     - name: Display Formatted Results
       debug:
@@ -120,7 +116,11 @@
           {% endif %}
     
           🩺 Database Health Check:
-          {% for db in db_health_fact | default([]) if db.name is defined and db.state_desc is defined %}
-           - Database: {{ db.name }}
-             - Status: {{ db.state_desc }}
+          {% if db_health_fact.status is defined and db_health_fact.ActiveRequests is defined and db_health_fact.ActiveUserConnections is defined and db_health_fact.PendingRequests is defined and db_health_fact.CPUQueueLength is defined %}
+           - Database: {{ db_health_fact.DatabaseName }}
+             - Status: {{ db_health_fact.status }}
+             - Active Requests: {{ db_health_fact.ActiveRequests }}
+             - Active User Connections: {{ db_health_fact.ActiveUserConnections }}
+             - Pending Requests: {{ db_health_fact.PendingRequests }}
+             - CPU Queue Length: {{ db_health_fact.CPUQueueLength }}
           {% endfor %}
