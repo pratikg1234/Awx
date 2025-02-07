@@ -114,7 +114,7 @@
           {% if db_health_fact is defined and db_health_fact | length > 0 %}
             {% for item in db_health_fact | default([]) %}
                - Database: {{ item.DatabaseName | default([]) }}
-                 - Status: {{ item.status | default([]) }}
+                 - Status: {{ item.Status | default([]) }}
                  - Active Requests: {{ item.ActiveRequests | default(0) }}
                  - Active User Connections: {{ item.ActiveUserConnections | default(0) }}
                  - Pending Requests: {{ item.PendingRequests | default(0) }}
