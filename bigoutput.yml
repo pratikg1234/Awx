@@ -91,12 +91,7 @@
           {% endif %}
     
           [ℹ️] Job activities query returned {{ job_activities_fact | default([]) | length }} rows.
-    
-          # 🛠 SQL Server Agent Job Activities:
-          # {% for job in job_activities_fact | default([]) if job.name is defined and job.enabled is defined %}
-          #  - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
-          #    {% if job.last_run_outcome | default(-1) == 1 %}Succeeded{% elif job.last_run_outcome | default(-1) == 0 %}Failed{% else %}Unknown{% endif %}
-          # {% endfor %}
+          
           🛠 SQL Server Agent Job Activities:
           {% if job_activities_fact.name is defined and job_activities_fact.enabled is defined and job_activities_fact.last_run_status is defined %}
            - Job: {{ job_activities_fact.name }} | Enabled: {{ job_activities_fact.enabled }} | Last Outcome: 
@@ -116,11 +111,11 @@
           {% endif %}
     
           🩺 Database Health Check:
-          {% if db_health_fact.status is defined and db_health_fact.ActiveRequests is defined and db_health_fact.ActiveUserConnections is defined and db_health_fact.PendingRequests is defined and db_health_fact.CPUQueueLength is defined %}
-           - Database: {{ db_health_fact.DatabaseName }}
-             - Status: {{ db_health_fact.status }}
-             - Active Requests: {{ db_health_fact.ActiveRequests }}
-             - Active User Connections: {{ db_health_fact.ActiveUserConnections }}
-             - Pending Requests: {{ db_health_fact.PendingRequests }}
-             - CPU Queue Length: {{ db_health_fact.CPUQueueLength }}
-          {% endif %}
+          {% for item in db_health_fact | default([]) if item.status is defined and item.ActiveRequests is defined and item.ActiveUserConnections is defined and item.PendingRequests is defined and item.CPUQueueLength is defined and item.DatabaseName is defined%}
+           - Database: {{ item.DatabaseName }}
+             - Status: {{ item.status }}
+             - Active Requests: {{ item.ActiveRequests }}
+             - Active User Connections: {{ item.ActiveUserConnections }}
+             - Pending Requests: {{ item.PendingRequests }}
+             - CPU Queue Length: {{ item.CPUQueueLength }}
+          {% endfor %}
