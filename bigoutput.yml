@@ -121,7 +121,7 @@
                  - Pending Requests: {{ item.PendingRequests }}
                  - CPU Queue Length: {{ item.CPUQueueLength }}
               {% else %}
-                - ⚠️ Some fields are missing for this database entry: {{ item }}
+                - ⚠️ Some fields are missing for this database entry:
               {% endif %}
             {% endfor %}
           {% else %}
