@@ -92,10 +92,25 @@
     
           [ℹ️] Job activities query returned {{ job_activities_fact | default([]) | length }} rows.
     
+          # 🛠 SQL Server Agent Job Activities:
+          # {% for job in job_activities_fact | default([]) if job.name is defined and job.enabled is defined %}
+          #  - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
+          #    {% if job.last_run_outcome | default(-1) == 1 %}Succeeded{% elif job.last_run_outcome | default(-1) == 0 %}Failed{% else %}Unknown{% endif %}
+          # {% endfor %}
           🛠 SQL Server Agent Job Activities:
           {% for job in job_activities_fact | default([]) if job.name is defined and job.enabled is defined %}
            - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
-             {% if job.last_run_outcome | default(-1) == 1 %}Succeeded{% elif job.last_run_outcome | default(-1) == 0 %}Failed{% else %}Unknown{% endif %}
+             {% if job.last_run_status | default(-1) == 1 %}
+               Succeeded
+             {% elif job.last_run_status | default(-1) == 0 %}
+               Failed
+             {% elif job.last_run_status | default(-1) == 2 %}
+               Retry
+             {% elif job.last_run_status | default(-1) == 3 %}
+               Canceled
+             {% else %}
+               Unknown
+             {% endif %}
           {% endfor %}
     
           🩺 Database Health Check:
