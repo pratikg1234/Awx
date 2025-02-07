@@ -111,11 +111,19 @@
           {% endif %}
     
           🩺 Database Health Check:
-          {% for item in db_health_fact | default([]) if item.status is defined and item.ActiveRequests is defined and item.ActiveUserConnections is defined and item.PendingRequests is defined and item.CPUQueueLength is defined and item.DatabaseName is defined%}
-           - Database: {{ item.DatabaseName }}
-             - Status: {{ item.status }}
-             - Active Requests: {{ item.ActiveRequests }}
-             - Active User Connections: {{ item.ActiveUserConnections }}
-             - Pending Requests: {{ item.PendingRequests }}
-             - CPU Queue Length: {{ item.CPUQueueLength }}
-          {% endfor %}
+          {% if db_health_fact is defined and db_health_fact | length > 0 %}
+            {% for item in db_health_fact | default([]) %}
+              {% if item.status is defined and item.ActiveRequests is defined and item.ActiveUserConnections is defined and item.PendingRequests is defined and item.CPUQueueLength is defined and item.DatabaseName is defined %}
+               - Database: {{ item.DatabaseName }}
+                 - Status: {{ item.status }}
+                 - Active Requests: {{ item.ActiveRequests }}
+                 - Active User Connections: {{ item.ActiveUserConnections }}
+                 - Pending Requests: {{ item.PendingRequests }}
+                 - CPU Queue Length: {{ item.CPUQueueLength }}
+              {% else %}
+                - ⚠️ Some fields are missing for this database entry: {{ item }}
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            [❌] No database health data available.
+          {% endif %}
