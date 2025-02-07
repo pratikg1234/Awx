@@ -104,21 +104,21 @@
           # {% endfor %}
           🛠 SQL Server Agent Job Activities:
           {% if job_activities_fact.Table is defined %}
-       - Job: {{ job_activities_fact.Table.name }} | Enabled: {{ job_activities_fact.Table.enabled }} | Last Outcome: 
-         {% if job_activities_fact.Table.last_run_status | default(-1) == 1 %}
-           Succeeded
-         {% elif job_activities_fact.Table.last_run_status | default(-1) == 0 %}
-           Failed
-         {% elif job_activities_fact.Table.last_run_status | default(-1) == 2 %}
-           Retry
-         {% elif job_activities_fact.Table.last_run_status | default(-1) == 3 %}
-           Canceled
-         {% else %}
-           Unknown
-         {% endif %}
-        {% else %}
-          [❌] No job activities found.
-        {% endif %}
+           - Job: {{ job_activities_fact.Table.name }} | Enabled: {{ job_activities_fact.Table.enabled }} | Last Outcome: 
+             {% if job_activities_fact.Table.last_run_status | default(-1) == 1 %}
+               Succeeded
+             {% elif job_activities_fact.Table.last_run_status | default(-1) == 0 %}
+               Failed
+             {% elif job_activities_fact.Table.last_run_status | default(-1) == 2 %}
+               Retry
+             {% elif job_activities_fact.Table.last_run_status | default(-1) == 3 %}
+               Canceled
+             {% else %}
+               Unknown
+             {% endif %}
+          {% else %}
+            [❌] No job activities found.
+          {% endif %}
     
           🩺 Database Health Check:
           {% for db in db_health_fact | default([]) if db.name is defined and db.state_desc is defined %}
