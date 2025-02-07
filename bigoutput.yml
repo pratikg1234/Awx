@@ -75,6 +75,11 @@
         deadlocks_fact: "{{ (deadlocks.stdout | from_json) if deadlocks.stdout is not none else {'Deadlocks': 0} }}"
         job_activities_fact: "{{ (job_activities.stdout | from_json) if job_activities.stdout is not none else [] }}"
 
+# For outputting whta is there inside job activities
+    - name: Debug job_activities_fact
+      debug:
+        var: job_activities_fact
+
     - name: Display Formatted Results
       debug:
         msg: |
