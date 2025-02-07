@@ -58,33 +58,36 @@
 
     - name: Convert Outputs to JSON
       set_fact:
-        db_space_fact: "{{ db_space.stdout | from_json | default([]) }}"
-        db_health_fact: "{{ db_health.stdout | from_json | default([]) }}"
-        deadlocks_fact: "{{ deadlocks.stdout | from_json | default([]) }}"
-        job_activities_fact: "{{ job_activities.stdout | from_json | default([]) }}"
+        db_space_fact: "{{ (db_space.stdout | from_json) if db_space.stdout is not none else [] }}"
+        db_health_fact: "{{ (db_health.stdout | from_json) if db_health.stdout is not none else [] }}"
+        deadlocks_fact: "{{ (deadlocks.stdout | from_json) if deadlocks.stdout is not none else {'Deadlocks': 0} }}"
+        job_activities_fact: "{{ (job_activities.stdout | from_json) if job_activities.stdout is not none else [] }}"
 
     - name: Display Formatted Results
       debug:
-        msg: |
+         msg: |
           📊 Database Space Utilization:
-          {%- for db in db_space_fact %}
-          - {{ db.DatabaseName }}: {{ db.SizeMB }} MB
-          {%- endfor %}
+          {% for item in db_space_fact | default([]) %}
+           - {{ item.DatabaseName }}: {{ item.SizeMB }} MB
+          {% endfor %}
 
           🚨 Deadlocks:
-          {%- if deadlocks_fact[0]['Deadlocks'] | int == 0 %}
-          - No deadlocks detected
-          {%- else %}
-          - Detected {{ deadlocks_fact[0]['Deadlocks'] }} deadlocks
-          {%- endif %}
+          {% if deadlocks_fact.Deadlocks | int > 0 %}
+           - {{ deadlocks_fact.Deadlocks }} deadlocks detected!
+          {% else %}
+           - No deadlocks detected
+          {% endif %}
+
+          [ℹ️] Job activities query returned {{ job_activities_fact | length }} rows.
 
           🛠 SQL Server Agent Job Activities:
-          {%- for job in job_activities_fact %}
-          - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: {{ {0: "Failed", 1: "Succeeded", 2: "Retry", 3: "Canceled"}.get(job.last_run_outcome | int, "Unknown") }}
-          {%- endfor %}
+          {% for job in job_activities_fact | default([]) %}
+           - Job: {{ job.name }} | Enabled: {{ job.enabled }} | Last Outcome: 
+             {% if job.last_run_outcome == 1 %}Succeeded{% elif job.last_run_outcome == 0 %}Failed{% else %}Unknown{% endif %}
+          {% endfor %}
 
           🩺 Database Health Check:
-          {%- for db in db_health_fact %}
-          - Database: {{ db.DatabaseName }}
-            - Status: {{ db.Status }}
-          {%- endfor %}
+          {% for db in db_health_fact | default([]) %}
+           - Database: {{ db.name }}
+             - Status: {{ db.state_desc }}
+          {% endfor %}
