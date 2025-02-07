@@ -103,21 +103,21 @@
           #    {% if job.last_run_outcome | default(-1) == 1 %}Succeeded{% elif job.last_run_outcome | default(-1) == 0 %}Failed{% else %}Unknown{% endif %}
           # {% endfor %}
           🛠 SQL Server Agent Job Activities:
-          {% if job_activities_fact.Table is defined %}
-           - Job: {{ job_activities_fact.Table.name }} | Enabled: {{ job_activities_fact.Table.enabled }} | Last Outcome: 
-             {% if job_activities_fact.Table.last_run_status | default(-1) == 1 %}
+          {% if job_activities_fact.name is defined and job_activities_fact.enabled is defined and job_activities_fact.last_run_status is defined %}
+           - Job: {{ job_activities_fact.name }} | Enabled: {{ job_activities_fact.enabled }} | Last Outcome: 
+             {% if job_activities_fact.last_run_status | default(-1) == 1 %}
                Succeeded
-             {% elif job_activities_fact.Table.last_run_status | default(-1) == 0 %}
+             {% elif job_activities_fact.last_run_status | default(-1) == 0 %}
                Failed
-             {% elif job_activities_fact.Table.last_run_status | default(-1) == 2 %}
+             {% elif job_activities_fact.last_run_status | default(-1) == 2 %}
                Retry
-             {% elif job_activities_fact.Table.last_run_status | default(-1) == 3 %}
+             {% elif job_activities_fact.last_run_status | default(-1) == 3 %}
                Canceled
              {% else %}
                Unknown
              {% endif %}
           {% else %}
-            [❌] No job activities found.
+            [❌] No job activities found or missing required fields.
           {% endif %}
     
           🩺 Database Health Check:
