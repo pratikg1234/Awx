@@ -23,14 +23,28 @@
     - name: Get Database Health
       win_shell: |
         try {
-          $query = "SELECT name AS DatabaseName,
-          state_desc AS Status,
-          (SELECT COUNT(*) FROM sys.dm_exec_requests) AS ActiveRequests,
-          (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1) AS ActiveUserConnections,
-          (SELECT COUNT(*) FROM sys.dm_os_waiting_tasks) AS PendingRequests,
-          (SELECT COUNT(*) FROM sys.dm_os_performance_counters
-          WHERE counter_name = 'Processor Queue Length') AS CPUQueueLength
-          FROM sys.databases;"
+          $query = "SELECT db.name AS DatabaseName,db.state_desc AS Status,
+    -- Active Requests for the specific database
+    (SELECT COUNT(*) 
+     FROM sys.dm_exec_requests r 
+     WHERE r.database_id = db.database_id) AS ActiveRequests,
+
+    -- Active User Connections for the specific database
+    (SELECT COUNT(*) 
+     FROM sys.dm_exec_sessions s 
+     WHERE s.is_user_process = 1 AND s.database_id = db.database_id) AS ActiveUserConnections,
+
+    -- Pending Requests for the specific database
+    (SELECT COUNT(*) 
+     FROM sys.dm_os_waiting_tasks w 
+     JOIN sys.dm_exec_sessions s ON w.session_id = s.session_id
+     WHERE s.database_id = db.database_id) AS PendingRequests,
+
+    -- CPU Queue Length for the whole system (this doesn't depend on the database)
+    (SELECT COUNT(*) 
+     FROM sys.dm_os_performance_counters
+     WHERE counter_name = 'Processor Queue Length') AS CPUQueueLength
+    FROM sys.databases db;"
           $result = Invoke-Sqlcmd -Query "$query" -ServerInstance "{{ sql_instance }}" -Username "{{ sql_user }}" -Password "{{ sql_password }}" -TrustServerCertificate | ConvertTo-Json -Compress -Depth 3
           if (-not $result) { Write-Output '[]' } else { Write-Output $result }
         } catch {
